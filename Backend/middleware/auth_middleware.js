@@ -3,35 +3,39 @@ import jwt from 'jsonwebtoken';
 import User from '../models/Users.js';
 
 
-export const protectRoute = asyncHandler((req,res,next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(" ")[1];
+export const protectRoute = asyncHandler(async (req, res, next) => {
+  // Extract token from header
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(" ")[1];
 
-    if(!token) {
-        return res.status(401).json({
-            success:false,
-            message:"Not authorized to access this resource"
-        });
+  // Check if token exists
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Not authorized to access this resource"
+    });
+  }
+
+  try {
+    // Verify token
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Find user
+    const user = await User.findById(decodedToken.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
-        if(err){
-            return res.status(403).json({
-                success:false,
-                message:"Failed to authenticate token"
-            })
-        }
-
-        const user = await User.findById(decodedToken.id).select("-password");
-
-        if(!user){
-            return res.status(404).json({
-                success:false,
-                message:"User not found"
-            })
-        }
-        
-        req.user = user;
-        next();
-    })
-});
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(403).json({
+      success: false,
+      message: "Failed to authenticate token"
+    });
+  }
+});

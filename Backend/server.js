@@ -5,6 +5,7 @@ import {connectDB} from './config/db.js';
 import {errorHandler} from './middleware/error_middleware.js';
 import authRoute from './routes/authRoutes.js';
 import userRoute from './routes/userRoutes.js';
+import taskRouter from './routes/taskRoutes.js';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { protectRoute } from './middleware/auth_middleware.js';
@@ -30,6 +31,9 @@ app.use("/auth", authRoute)
 app.use(protectRoute)
 //Mount user router
 app.use("/user", userRoute)
+
+//Mount tasks router
+app.use("/tasks", taskRouter)
 
 //Mount error handler
 app.use(errorHandler);

@@ -34,11 +34,21 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
-  // 3. Generate tokens
+  // 3. Clear any previous session from this browser tab/client to prevent session accumulation
+  const oldRefreshToken = req.cookies?.refreshToken;
+  if (oldRefreshToken) {
+    try {
+      await Session.findOneAndDelete({ refreshtoken: oldRefreshToken });
+    } catch (err) {
+      // Ignore if session not found in database
+    }
+  }
+
+  // 4. Generate new tokens
   const accessToken = generatetoken(user._id);
   const refreshToken = refreshtoken(user._id);
 
-  // 4. Save Session in Database
+  // 5. Save Session in Database
   await Session.create({
     user: user._id,
     refreshtoken: refreshToken,
@@ -96,7 +106,6 @@ export const register = asyncHandler(async (req, res) => {
     success: true,
     message: "User created successfully",
     data: {
-      token: generatetoken(user._id),
       user: {
         _id: user._id,
         username: user.username,
