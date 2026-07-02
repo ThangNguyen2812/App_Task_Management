@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
+import { connection } from '../config/db.js';
 import bcrypt from 'bcryptjs';
+
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,7 +21,7 @@ const userSchema = new mongoose.Schema(
       type: String, 
       required: [true, 'Please add a password'], 
       minlength: 6 
-    },
+    }
   },
   { timestamps: true }
 );
@@ -37,6 +39,6 @@ userSchema.methods.comparePassword = async function(password){
 }
 
 
-const User = mongoose.model('User', userSchema);
+const User = connection.model('User', userSchema);
 
 export default User;

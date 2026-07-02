@@ -1,9 +1,21 @@
 import jwt from 'jsonwebtoken';
 
-const generateToken = (id) => {
+export const expiresTime = {
+  access: '2h',
+  refresh: '7d',
+  refreshMs: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+};
+
+export const generatetoken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '2h' // Token expires in 2 hours
+    expiresIn: expiresTime.access
   });
 };
 
-export default generateToken;
+export const refreshtoken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH || 'default_refresh_secret', {
+    expiresIn: expiresTime.refresh
+  });
+};
+
+
