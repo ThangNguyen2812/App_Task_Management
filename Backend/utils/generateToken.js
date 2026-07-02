@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 export const expiresTime = {
-  access: '2h',
+  access: '1h',
   refresh: '7d',
   refreshMs: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
 };
