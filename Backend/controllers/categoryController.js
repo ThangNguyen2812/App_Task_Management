@@ -49,7 +49,7 @@ export const deleteCategory = asyncHandler(async (req, res) => {
             message: "Category not found"
         });
     }
-    // Nullify category reference in all tasks belonging to this category
+    //Delete category ref from task
     await Task.updateMany({ category: category._id }, { $set: { category: null } });
 
     await category.deleteOne();
