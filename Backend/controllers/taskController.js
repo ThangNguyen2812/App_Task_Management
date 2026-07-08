@@ -103,7 +103,7 @@ export const updateTask = asyncHandler(async (req, res) => {
     task.title = title || task.title;
     task.description = description || task.description;
     task.category = categoryId || category || task.category; // Support both in update
-    task.isCompleted = isCompleted || task.isCompleted;
+    task.isCompleted = isCompleted !== undefined ? isCompleted : task.isCompleted;
     await task.save();
     return res.status(200).json({
         success: true,
