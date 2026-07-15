@@ -6,7 +6,8 @@ import Task from "../models/Tasks.js";
 //@route GET /categories
 //@access Private
 export const getCategories = asyncHandler(async (req, res) => {
-    const categories = await Category.find();
+    // Filter categories to only return those created by the logged-in user
+    const categories = await Category.find({ user: req.user.id });
     return res.status(200).json({
         success: true,
         message: "Categories fetched successfully",
@@ -47,6 +48,14 @@ export const deleteCategory = asyncHandler(async (req, res) => {
         return res.status(404).json({
             success: false,
             message: "Category not found"
+        });
+    }
+    
+    // Check if the category belongs to the logged-in user
+    if (category.user.toString() !== req.user.id) {
+        return res.status(403).json({
+            success: false,
+            message: "Not authorized to delete this category"
         });
     }
     //Delete category ref from task
