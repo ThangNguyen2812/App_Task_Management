@@ -13,7 +13,14 @@ export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#3b82f6');
+  const [showManageCategories, setShowManageCategories] = useState(false);
   
+  // Inline Edit States
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  // Filter, Sort & Pagination States
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -37,6 +44,9 @@ export default function Dashboard() {
           taskUrl += `&isCompleted=true`;
         } else if (statusFilter === 'incomplete') {
           taskUrl += `&isCompleted=false`;
+        }
+        if (activeCategoryFilter) {
+          taskUrl += `&categoryId=${activeCategoryFilter}`;
         }
         
         const [taskRes, catRes] = await Promise.all([
@@ -63,7 +73,7 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [searchQuery, currentPage, sortBy, statusFilter, refreshTrigger]);
+  }, [searchQuery, currentPage, sortBy, statusFilter, activeCategoryFilter, refreshTrigger]);
 
   // Handle Category Submission
   const handleCreateCategory = async (e) => {
@@ -115,9 +125,31 @@ export default function Dashboard() {
   const handleToggleComplete = async (id, currentStatus) => {
     try {
       const { data } = await API.put(`/tasks/update/${id}`, { isCompleted: !currentStatus });
-      setTasks((prev) => prev.map((t) => (t._id === id ? data.data : t)));
+      setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, isCompleted: data.data.isCompleted } : t)));
     } catch (error) {
       console.error('Error updating task:', error.message);
+    }
+  };
+
+  const handleStartEdit = (task) => {
+    setEditingTaskId(task._id);
+    setEditTitle(task.title);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+    setEditTitle('');
+  };
+
+  const handleSaveEdit = async (id) => {
+    if (!editTitle.trim()) return;
+    try {
+      const { data } = await API.put(`/tasks/update/${id}`, { title: editTitle });
+      setTasks((prev) => prev.map((t) => (t._id === id ? { ...t, title: data.data.title } : t)));
+      setEditingTaskId(null);
+      setEditTitle('');
+    } catch (error) {
+      console.error('Error saving edited task:', error.message);
     }
   };
 
@@ -145,7 +177,7 @@ export default function Dashboard() {
         <form onSubmit={handleCreateCategory} className="category-form">
           <input
             type="text"
-            placeholder="New Category Label (e.g. Work)..."
+            placeholder="New Category Label..."
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             className="task-input"
@@ -157,27 +189,49 @@ export default function Dashboard() {
             className="color-picker"
           />
           <button type="submit" className="add-btn" style={{ backgroundColor: '#3b82f6' }}>Create Tag</button>
+          <button 
+            type="button" 
+            onClick={() => setShowManageCategories(prev => !prev)} 
+            className="manage-tags-btn"
+            style={{ backgroundColor: showManageCategories ? '#6b7280' : '#ef4444' }}
+          >
+            {showManageCategories ? 'Close' : 'Delete Tag'}
+          </button>
         </form>
-        {/* Category List */}
-        <div className="category-list">
-          {categories.map((cat) => (
-            <div 
-              key={cat._id} 
-              className="category-chip" 
-              style={{ backgroundColor: cat.color || '#3b82f6' }}
-            >
-              <span>{cat.name}</span>
-              <button
-                type="button"
-                onClick={() => handleDeleteCategory(cat._id)}
-                className="category-delete-btn"
-                title={`Delete ${cat.name}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
+
+        {/* Collapsible Category List */}
+        {showManageCategories && (
+          <div className="category-management-panel">
+            <span className="panel-title">Existing Tags (Click ✕ to delete):</span>
+            {categories.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>No categories created yet.</p>
+            ) : (
+              <div className="category-list">
+                {categories.map((cat) => (
+                  <div 
+                    key={cat._id} 
+                    className="category-chip" 
+                    style={{ backgroundColor: cat.color || '#3b82f6' }}
+                  >
+                    <span>{cat.name}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(cat._id);
+                      }}
+                      className="category-delete-btn"
+                      title={`Delete ${cat.name}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
 
         {/* Task Creation Form */}
         <form onSubmit={handleCreateTask} className="task-form">
@@ -235,6 +289,22 @@ export default function Dashboard() {
             <option value="incomplete">Incomplete</option>
           </select>
           <select
+            value={activeCategoryFilter}
+            onChange={(e) => {
+              setActiveCategoryFilter(e.target.value);
+              setCurrentPage(1);
+              setLoading(true);
+            }}
+            className="sort-select"
+          >
+            <option value="">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          <select
             value={sortBy}
             onChange={(e) => {
               setSortBy(e.target.value);
@@ -243,9 +313,8 @@ export default function Dashboard() {
             }}
             className="sort-select"
           >
-            <option value="createdAt:desc">Newest First</option>
             <option value="createdAt:asc">Oldest First</option>
-            <option value="category:asc">Category</option>
+            <option value="createdAt:desc">Newest First</option>
           </select>
         </div>
       </div>
@@ -266,21 +335,61 @@ export default function Dashboard() {
                   onChange={() => handleToggleComplete(task._id, task.isCompleted)}
                   className="task-checkbox"
                 />
-                <span className={task.isCompleted ? "task-text-completed" : "task-text"}>
-                  {task.title}
-                </span>
+                {editingTaskId === task._id ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit(task._id);
+                      else if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    className="edit-input"
+                    autoFocus
+                  />
+                ) : (
+                  <span 
+                    className={task.isCompleted ? "task-text-completed" : "task-text"}
+                    onClick={() => handleStartEdit(task)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to edit task title"
+                  >
+                    {task.title}
+                  </span>
+                )}
                 {task.category && (
                   <span 
                     className="category-badge" 
-                    style={{ backgroundColor: task.category.color || '#9ca3af' }}
+                    style={{ backgroundColor: task.category.color || '#9ca3af', cursor: 'pointer' }}
+                    onClick={() => {
+                      setActiveCategoryFilter(prev => prev === task.category._id ? '' : task.category._id);
+                      setCurrentPage(1);
+                    }}
+                    title={`Filter by ${task.category.name}`}
                   >
                     {task.category.name}
                   </span>
                 )}
               </div>
-              <button onClick={() => handleDeleteTask(task._id)} className="delete-btn">
-                Delete
-              </button>
+              {editingTaskId === task._id ? (
+                <div className="edit-actions">
+                  <button onClick={() => handleSaveEdit(task._id)} className="save-btn">
+                    Save
+                  </button>
+                  <button onClick={handleCancelEdit} className="cancel-btn">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleStartEdit(task)} className="edit-btn">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteTask(task._id)} className="delete-btn">
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
