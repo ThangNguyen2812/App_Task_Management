@@ -72,7 +72,6 @@ export const login = asyncHandler(async (req, res) => {
       user: {
         _id: user._id,
         username: user.username,
-        email: user.email
       }
     }
   });
@@ -108,8 +107,7 @@ export const register = asyncHandler(async (req, res) => {
     data: {
       user: {
         _id: user._id,
-        username: user.username,
-        email: user.email
+        username: user.username
       }
     }
   });
@@ -133,6 +131,47 @@ export const logout = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         message: "Logout successfully"
+    });
+});
+
+
+// @desc create access token from refresh token
+// @route POST /auth/refresh
+// @access Private
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+    const token = req.cookies?.refreshToken;
+
+    if(!token){
+        return res.status(401).json({
+            success: false,
+            message: "Refresh token is required"
+        });
+    }
+
+    const session = await Session.findOne({refreshtoken: token});
+
+    if(!session){
+      return res.status(403).json({
+        success: false,
+        message: "Invalid refresh token or Outdated"
+      });
+    }
+
+    if(session.expiresAt < new Date()){
+      return res.status(403).json({
+        success: false,
+        message: "Outdated token"
+      })
+    }
+
+    const accessToken = generatetoken(session.user);
+
+    return res.status(200).json({
+        success: true,
+        message: "Access token refreshed successfully",
+        data: {
+            token: accessToken
+        }
     });
 });
 
