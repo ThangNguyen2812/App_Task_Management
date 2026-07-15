@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const API = axios.create({
-    baseURL: "http://localhost:5000",
+    baseURL: API_BASE_URL,
     withCredentials: true, // Allow cookies to be sent along with API requests
     headers:{
         "Content-Type": "application/json",
@@ -31,7 +33,7 @@ API.interceptors.response.use(
             originalRequest._retry = true;
             try {
                 // Call refresh token API. Use raw axios to prevent request loop.
-                const { data } = await axios.post("http://localhost:5000/auth/refresh", {}, {
+                const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
                     withCredentials: true
                 });
 
